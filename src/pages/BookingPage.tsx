@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Clock, CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 
 const services = [
   { id: 's1', name: 'Headlight Retrofit', duration: '4-6 Hours', price: 'From $250' },

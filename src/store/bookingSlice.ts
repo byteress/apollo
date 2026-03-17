@@ -1,5 +1,5 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { BookingPayload, BookingState, Booking } from '../types';
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import type { BookingPayload, BookingState } from '../types';
 import { submitBooking } from '../services/api';
 
 export const submitBookingAsync = createAsyncThunk(

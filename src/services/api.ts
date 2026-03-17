@@ -1,4 +1,4 @@
-import { BookingPayload, Booking } from '../types';
+import type { BookingPayload, Booking } from '../types';
 
 export const submitBooking = async (payload: BookingPayload): Promise<Booking> => {
   return new Promise((resolve, reject) => {

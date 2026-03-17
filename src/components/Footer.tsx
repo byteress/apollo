@@ -1,4 +1,4 @@
-import { Wrench, Instagram, Facebook, Youtube, MapPin, Phone, Mail } from 'lucide-react';
+import { Instagram, Facebook, Youtube, MapPin, Phone, Mail } from 'lucide-react';
 
 export default function Footer() {
   return (

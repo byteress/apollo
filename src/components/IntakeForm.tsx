@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { submitBookingAsync, resetBookingState } from '../store/bookingSlice';
-import { RootState, AppDispatch } from '../store';
+import type { RootState, AppDispatch } from '../store';
 import { MapPin, Phone, Mail, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function IntakeForm() {
