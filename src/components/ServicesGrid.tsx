@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Lightbulb, MonitorPlay, Wrench, ShieldAlert, Zap, CarFront } from 'lucide-react';
-import { ServiceItem } from '../types';
+import type { ServiceItem } from '../types';
 
 export const services: ServiceItem[] = [
   {

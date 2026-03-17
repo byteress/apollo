@@ -1,4 +1,4 @@
-import { BuildItem } from '../types';
+import type { BuildItem } from '../types';
 import { Eye } from 'lucide-react';
 
 const builds: BuildItem[] = [

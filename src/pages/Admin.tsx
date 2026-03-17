@@ -4,8 +4,6 @@ import {
   Package, 
   FileText, 
   Calendar, 
-  Users, 
-  Settings, 
   LogOut,
   TrendingUp,
   DollarSign,
