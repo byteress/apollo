@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Calendar, ThumbsUp, MessageCircle, Share2, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { FacebookPost } from '../types';
@@ -23,10 +23,33 @@ function getPostImages(post: FacebookPost): string[] {
   return single ? [single] : [];
 }
 
+/**
+ * Determines whether a Facebook post should appear in the Portfolio page.
+ *
+ * A post qualifies if it meets at least one of:
+ *  1. Its message contains the #portfolio hashtag (added by admins to explicitly
+ *     tag portfolio posts).
+ *  2. It has more than 2 images (carousel / album with 3+ photos).
+ *  3. It has a long caption (≥ 100 characters) that contains at least one hashtag
+ *     — characteristic of detailed portfolio showcase posts.
+ */
+function isPortfolioPost(post: FacebookPost): boolean {
+  const message = post.message ?? '';
+  const images = getPostImages(post);
+
+  if (/#portfolio\b/i.test(message)) return true;
+  if (images.length > 2) return true;
+  if (message.length >= 100 && /#\w+/.test(message)) return true;
+
+  return false;
+}
+
 export default function Portfolio() {
   const [posts, setPosts] = useState<FacebookPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const portfolioPosts = useMemo(() => posts.filter(isPortfolioPost), [posts]);
 
   useEffect(() => {
     fetchFacebookPosts()
@@ -65,9 +88,15 @@ export default function Portfolio() {
           </div>
         )}
 
-        {!loading && !error && (
+        {!loading && !error && portfolioPosts.length === 0 && (
+          <div className="flex flex-col items-center gap-3 py-16 text-center">
+            <p className="text-gray-400">No portfolio posts available yet. Check back soon!</p>
+          </div>
+        )}
+
+        {!loading && !error && portfolioPosts.length > 0 && (
           <div className="space-y-16">
-            {posts.map((post, index) => {
+            {portfolioPosts.map((post, index) => {
               const images = getPostImages(post);
               const postUrl = getPostUrl(post.id);
               const readableDate = new Date(post.created_time).toLocaleString();
