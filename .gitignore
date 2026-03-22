@@ -12,10 +12,8 @@ dist
 dist-ssr
 *.local
 
-# Python backend
-backend/.venv
-backend/__pycache__
-backend/*.pyc
+# PHP backend
+backend/vendor
 backend/.env
 
 # Editor directories and files

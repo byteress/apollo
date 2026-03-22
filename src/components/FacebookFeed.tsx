@@ -24,19 +24,36 @@ function getPostImages(post: FacebookPost): string[] {
 
 export default function FacebookFeed() {
   const [posts, setPosts] = useState<FacebookPost[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchFacebookPosts()
-      .then((data) => {
-        setPosts(data.slice(0, 6));
+      .then(({ posts: initialPosts, nextCursor: cursor }) => {
+        setPosts(initialPosts);
+        setNextCursor(cursor);
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load posts.');
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleLoadMore = () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    fetchFacebookPosts(nextCursor)
+      .then(({ posts: morePosts, nextCursor: cursor }) => {
+        setPosts((prev) => [...prev, ...morePosts]);
+        setNextCursor(cursor);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Failed to load more posts.');
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   return (
     <section className="py-24 bg-brand-darker border-t border-gray-800">
@@ -65,17 +82,18 @@ export default function FacebookFeed() {
         )}
 
         {!loading && !error && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((post) => {
-              const images = getPostImages(post);
-              const postUrl = getPostUrl(post.id);
-              const readableDate = new Date(post.created_time).toLocaleString();
-              const likesCount = post.likes?.summary?.total_count ?? 0;
-              const commentsCount = post.comments?.summary?.total_count ?? 0;
-              const sharesCount = post.shares?.count ?? 0;
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {posts.map((post) => {
+                const images = getPostImages(post);
+                const postUrl = getPostUrl(post.id);
+                const readableDate = new Date(post.created_time).toLocaleString();
+                const likesCount = post.likes?.summary?.total_count ?? 0;
+                const commentsCount = post.comments?.summary?.total_count ?? 0;
+                const sharesCount = post.shares?.count ?? 0;
 
-              return (
-                <div
+                return (
+                  <div
                   key={post.id}
                   className="bg-brand-dark border border-gray-800 rounded-sm overflow-hidden flex flex-col"
                 >
@@ -157,9 +175,28 @@ export default function FacebookFeed() {
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            {nextCursor && (
+              <div className="flex justify-center mt-12">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="flex items-center gap-2 px-8 py-3 bg-brand-orange text-white font-bold uppercase tracking-widest text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+                    </>
+                  ) : (
+                    'Load More'
+                  )}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

@@ -46,14 +46,48 @@ function isPortfolioPost(post: FacebookPost): boolean {
 
 export default function Portfolio() {
   const [posts, setPosts] = useState<FacebookPost[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const portfolioPosts = useMemo(() => posts.filter(isPortfolioPost), [posts]);
+  const [visibleCount, setVisibleCount] = useState(5);
+
+  const visiblePosts = portfolioPosts.slice(0, visibleCount);
+  const hasMoreVisible = visibleCount < portfolioPosts.length || Boolean(nextCursor);
+
+  const handleShowMore = () => {
+    const nextVisible = visibleCount + 5;
+    // If we already have enough filtered posts loaded, just reveal them
+    if (nextVisible <= portfolioPosts.length) {
+      setVisibleCount(nextVisible);
+      return;
+    }
+    // Otherwise fetch the next page from FB (if available) and reveal
+    if (!nextCursor || loadingMore) {
+      setVisibleCount(nextVisible);
+      return;
+    }
+    setLoadingMore(true);
+    fetchFacebookPosts(nextCursor)
+      .then(({ posts: morePosts, nextCursor: cursor }) => {
+        setPosts((prev) => [...prev, ...morePosts]);
+        setNextCursor(cursor);
+        setVisibleCount(nextVisible);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Failed to load more posts.');
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   useEffect(() => {
     fetchFacebookPosts()
-      .then(setPosts)
+      .then(({ posts: initialPosts, nextCursor: cursor }) => {
+        setPosts(initialPosts);
+        setNextCursor(cursor);
+      })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load portfolio.');
       })
@@ -95,8 +129,9 @@ export default function Portfolio() {
         )}
 
         {!loading && !error && portfolioPosts.length > 0 && (
-          <div className="space-y-16">
-            {portfolioPosts.map((post, index) => {
+          <>
+            <div className="space-y-16">
+              {visiblePosts.map((post, index) => {
               const images = getPostImages(post);
               const postUrl = getPostUrl(post.id);
               const readableDate = new Date(post.created_time).toLocaleString();
@@ -189,6 +224,25 @@ export default function Portfolio() {
               );
             })}
           </div>
+
+          {hasMoreVisible && (
+            <div className="flex justify-center mt-16">
+              <button
+                onClick={handleShowMore}
+                disabled={loadingMore}
+                className="flex items-center gap-2 px-8 py-3 bg-brand-orange text-white font-bold uppercase tracking-widest text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+                  </>
+                ) : (
+                  'Show More'
+                )}
+              </button>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>
