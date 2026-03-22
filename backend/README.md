@@ -15,6 +15,7 @@ page access token is never exposed in the browser.
 | Query param | Type | Default | Description |
 |-------------|------|---------|-------------|
 | `limit` | int | `10` | Number of posts to return (1–25) |
+| `after` | string | _(none)_ | Pagination cursor from a previous response's `paging.cursors.after` field |
 
 **Example response**
 
@@ -30,7 +31,13 @@ page access token is never exposed in the browser.
       "comments": { "summary": { "total_count": 7 } },
       "shares": { "count": 3 }
     }
-  ]
+  ],
+  "paging": {
+    "cursors": {
+      "before": "before_cursor_string",
+      "after": "after_cursor_string"
+    }
+  }
 }
 ```
 
@@ -59,32 +66,23 @@ Interactive docs (Swagger UI) are at <http://localhost:8000/docs>.
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `FB_ACCESS_TOKEN` | ✅ | Facebook page access token |
-| `CORS_ORIGINS` | ❌ | Comma-separated allowed origins (default: Vite dev servers) |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `FB_ACCESS_TOKEN` | ✅ | — | Facebook page access token |
+| `CORS_ORIGINS` | ❌ | `http://localhost:5173,http://localhost:4173` | Comma-separated allowed origins |
+| `CACHE_TTL_SECONDS` | ❌ | `60` | Seconds to cache first-page `/api/posts` results in memory |
 
-## Connecting the Frontend
+## Architecture Highlights
 
-Update `src/services/api.ts` to call the backend instead of the Graph API
-directly:
-
-```ts
-export const fetchFacebookPosts = async (): Promise<FacebookPost[]> => {
-  const url = import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL}/api/posts?limit=6`
-    : 'http://localhost:8000/api/posts?limit=6';
-
-  const response = await fetch(url);
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.detail ?? 'Failed to fetch Facebook posts.');
-  }
-
-  return (data.data ?? []) as FacebookPost[];
-};
-```
-
-Add `VITE_API_URL=http://localhost:8000` to your frontend `.env.local` when
-running both services locally.
+- **Shared HTTP client** – a single `httpx.AsyncClient` is created at startup via
+  FastAPI's `lifespan` context manager, enabling connection reuse across requests.
+- **In-memory TTL cache** – first-page `/api/posts` responses are cached for
+  `CACHE_TTL_SECONDS` seconds to avoid hitting Facebook's rate limits on every
+  page load. Paginated requests (with an `after` cursor) bypass the cache.
+- **Cursor-based pagination** – pass the `after` cursor from any response's
+  `paging.cursors.after` field to load the next page of posts.
+- **Typed responses** – Pydantic models validate and document the API responses
+  in Swagger UI automatically.
+- **Graceful error handling** – network timeouts return HTTP 504; connectivity
+  errors return HTTP 503; Facebook API errors are forwarded with their original
+  status code.
