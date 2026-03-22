@@ -21,8 +21,15 @@ export const submitBooking = async (payload: BookingPayload): Promise<Booking> =
   });
 };
 
-export const fetchFacebookPosts = async (): Promise<FacebookPost[]> => {
-  const url = `${BACKEND_URL}/api/posts`;
+export interface FacebookPostsPage {
+  posts: FacebookPost[];
+  nextCursor: string | null;
+}
+
+export const fetchFacebookPosts = async (after?: string): Promise<FacebookPostsPage> => {
+  const params = new URLSearchParams();
+  if (after) params.set('after', after);
+  const url = `${BACKEND_URL}/api/posts${params.size ? `?${params}` : ''}`;
 
   let response: Response;
   try {
@@ -37,5 +44,11 @@ export const fetchFacebookPosts = async (): Promise<FacebookPost[]> => {
     throw new Error(data?.detail ?? 'Failed to fetch Facebook posts.');
   }
 
-  return (data.data ?? []) as FacebookPost[];
+  const nextCursor: string | null = data?.paging?.cursors?.after ?? null;
+  const hasNext: boolean = Boolean(data?.paging?.next);
+
+  return {
+    posts: (data.data ?? []) as FacebookPost[],
+    nextCursor: hasNext ? nextCursor : null,
+  };
 };

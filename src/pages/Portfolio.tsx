@@ -46,19 +46,38 @@ function isPortfolioPost(post: FacebookPost): boolean {
 
 export default function Portfolio() {
   const [posts, setPosts] = useState<FacebookPost[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const portfolioPosts = useMemo(() => posts.filter(isPortfolioPost), [posts]);
 
   useEffect(() => {
     fetchFacebookPosts()
-      .then(setPosts)
+      .then(({ posts: initialPosts, nextCursor: cursor }) => {
+        setPosts(initialPosts);
+        setNextCursor(cursor);
+      })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load portfolio.');
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleLoadMore = () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    fetchFacebookPosts(nextCursor)
+      .then(({ posts: morePosts, nextCursor: cursor }) => {
+        setPosts((prev) => [...prev, ...morePosts]);
+        setNextCursor(cursor);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Failed to load more posts.');
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   return (
     <div className="pt-32 pb-24 min-h-screen bg-brand-darker">
@@ -95,8 +114,9 @@ export default function Portfolio() {
         )}
 
         {!loading && !error && portfolioPosts.length > 0 && (
-          <div className="space-y-16">
-            {portfolioPosts.map((post, index) => {
+          <>
+            <div className="space-y-16">
+              {portfolioPosts.map((post, index) => {
               const images = getPostImages(post);
               const postUrl = getPostUrl(post.id);
               const readableDate = new Date(post.created_time).toLocaleString();
@@ -189,6 +209,25 @@ export default function Portfolio() {
               );
             })}
           </div>
+
+          {nextCursor && (
+            <div className="flex justify-center mt-16">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="flex items-center gap-2 px-8 py-3 bg-brand-orange text-white font-bold uppercase tracking-widest text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+                  </>
+                ) : (
+                  'Load More'
+                )}
+              </button>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

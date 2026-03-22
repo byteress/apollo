@@ -142,18 +142,18 @@ async def get_posts(
     limit: int = Query(
         default=10,
         ge=1,
-        le=25,
-        description="Number of posts to return (1–25).",
+        le=100,
+        description="Number of posts to return per page (1–100).",
     ),
     after: str | None = Query(
         default=None,
         description="Pagination cursor from a previous response's `paging.cursors.after` field.",
     ),
 ) -> PostsResponse:
-    """Return the most recent Facebook page posts.
+    """Return Facebook page posts with cursor-based pagination.
 
-    Supports cursor-based pagination via the ``after`` query parameter.
-    Results for the first page (no cursor) are cached for
+    Pass the ``after`` cursor from a previous response's ``paging.cursors.after``
+    to fetch the next page.  First-page results (no cursor) are cached for
     ``CACHE_TTL_SECONDS`` seconds to reduce Facebook API calls.
     """
     access_token = os.getenv("FB_ACCESS_TOKEN")
