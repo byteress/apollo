@@ -1,6 +1,6 @@
-# Apollo – FastAPI Backend
+# Apollo – PHP Backend
 
-A lightweight FastAPI service that proxies the **Facebook Graph API** so that the
+A lightweight PHP script that proxies the **Facebook Graph API** so that the
 page access token is never exposed in the browser.
 
 ## Endpoints
@@ -8,13 +8,13 @@ page access token is never exposed in the browser.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/posts` | Return recent Facebook page posts |
-| `GET` | `/health` | Health-check (excluded from OpenAPI docs) |
+| `GET` | `/health` | Health-check |
 
 ### `GET /api/posts`
 
 | Query param | Type | Default | Description |
 |-------------|------|---------|-------------|
-| `limit` | int | `10` | Number of posts to return (1–25) |
+| `limit` | int | `10` | Number of posts to return (1–100) |
 | `after` | string | _(none)_ | Pagination cursor from a previous response's `paging.cursors.after` field |
 
 **Example response**
@@ -41,28 +41,57 @@ page access token is never exposed in the browser.
 }
 ```
 
+## Requirements
+
+- PHP 8.1 or newer
+- `curl` extension enabled (enabled by default in most PHP installations)
+- A web server (Apache with `mod_rewrite`, or Nginx – see below)
+
 ## Setup
+
+### Apache
 
 ```bash
 cd backend
 
-# 1. Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Configure environment variables
+# 1. Configure environment variables
 cp .env.example .env
 # Edit .env and fill in FB_ACCESS_TOKEN
 
-# 4. Start the development server
-uvicorn main:app --reload --port 8000
+# 2. Point your virtual host document root at the backend/ directory
+#    The included .htaccess routes all requests to index.php automatically
+#    (requires mod_rewrite to be enabled)
 ```
 
-The API will be available at <http://localhost:8000>.  
-Interactive docs (Swagger UI) are at <http://localhost:8000/docs>.
+### Nginx
+
+Add the following inside your `server` block:
+
+```nginx
+root /path/to/backend;
+index index.php;
+
+location / {
+    try_files $uri /index.php$is_args$args;
+}
+
+location ~ \.php$ {
+    include fastcgi_params;
+    fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+}
+```
+
+### Built-in PHP server (development only)
+
+```bash
+cd backend
+cp .env.example .env
+# Edit .env and fill in FB_ACCESS_TOKEN
+php -S localhost:8000
+```
+
+The API will be available at <http://localhost:8000>.
 
 ## Environment Variables
 
@@ -74,15 +103,10 @@ Interactive docs (Swagger UI) are at <http://localhost:8000/docs>.
 
 ## Architecture Highlights
 
-- **Shared HTTP client** – a single `httpx.AsyncClient` is created at startup via
-  FastAPI's `lifespan` context manager, enabling connection reuse across requests.
-- **In-memory TTL cache** – first-page `/api/posts` responses are cached for
-  `CACHE_TTL_SECONDS` seconds to avoid hitting Facebook's rate limits on every
-  page load. Paginated requests (with an `after` cursor) bypass the cache.
-- **Cursor-based pagination** – pass the `after` cursor from any response's
-  `paging.cursors.after` field to load the next page of posts.
-- **Typed responses** – Pydantic models validate and document the API responses
-  in Swagger UI automatically.
-- **Graceful error handling** – network timeouts return HTTP 504; connectivity
-  errors return HTTP 503; Facebook API errors are forwarded with their original
-  status code.
+- **No external dependencies** – a single `index.php` with no Composer packages required.
+- **Inline `.env` loader** – reads `backend/.env` at startup (same format as the previous Python backend).
+- **In-memory TTL cache** – uses [APCu](https://www.php.net/manual/en/book.apcu.php) when the extension is available; falls back to a file-based cache in the system temp directory. First-page `/api/posts` responses are cached for `CACHE_TTL_SECONDS` seconds to avoid hitting Facebook's rate limits on every page load.
+- **Cursor-based pagination** – pass the `after` cursor from any response's `paging.cursors.after` field to load the next page of posts. Paginated requests bypass the cache.
+- **Graceful error handling** – network timeouts return HTTP 504; connectivity errors return HTTP 503; Facebook API errors are forwarded with their original status code.
+- **CORS** – configurable via `CORS_ORIGINS`; handles `OPTIONS` preflight requests.
+
